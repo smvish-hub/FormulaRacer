@@ -11,6 +11,9 @@ namespace FormulaRacer
         private InputAction driveAction, steerAction, resetAction, cameraAction;
         private bool resetRequested;
         private bool cameraSwitchRequested;
+        private float keyboardDrive, keyboardSteer, touchDrive, touchSteer;
+        private bool touchDriveActive, touchSteerActive, appPaused, appUnfocused;
+        private bool suspended => appPaused || appUnfocused;
 
         private void Awake()
         {
@@ -39,11 +42,54 @@ namespace FormulaRacer
 
         private void Update()
         {
-            Drive = driveAction.ReadValue<float>();
-            Steer = steerAction.ReadValue<float>();
+            if (suspended) return;
+            keyboardDrive = driveAction.ReadValue<float>();
+            keyboardSteer = steerAction.ReadValue<float>();
+            MergeInput();
             resetRequested |= resetAction.WasPressedThisFrame();
             cameraSwitchRequested |= cameraAction.WasPressedThisFrame();
         }
+
+        // UI and keyboard meet here; consumers still see the same signed axes/requests.
+        public void SetTouchInput(float steer, bool steerActive, float drive, bool driveActive)
+        {
+            if (!isActiveAndEnabled || suspended) return;
+            touchSteer = Mathf.Clamp(steer, -1f, 1f);
+            touchDrive = Mathf.Clamp(drive, -1f, 1f);
+            touchSteerActive = steerActive;
+            touchDriveActive = driveActive;
+            MergeInput();
+        }
+
+        public void ClearTouchInput()
+        {
+            touchDrive = touchSteer = 0f;
+            touchDriveActive = touchSteerActive = false;
+            MergeInput();
+        }
+
+        public void RequestReset() { if (!suspended && isActiveAndEnabled) resetRequested = true; }
+        public void RequestCameraSwitch() { if (!suspended && isActiveAndEnabled) cameraSwitchRequested = true; }
+
+        private void MergeInput()
+        {
+            Drive = suspended ? 0f : touchDriveActive ? touchDrive : keyboardDrive;
+            Steer = suspended ? 0f : touchSteerActive ? touchSteer : keyboardSteer;
+        }
+
+        private void ClearAllInput()
+        {
+            keyboardDrive = keyboardSteer = 0f;
+            ClearTouchInput();
+            resetRequested = cameraSwitchRequested = false;
+            driveAction?.Reset();
+            steerAction?.Reset();
+            resetAction?.Reset();
+            cameraAction?.Reset();
+        }
+
+        private void OnApplicationPause(bool paused) { appPaused = paused; if (paused) ClearAllInput(); }
+        private void OnApplicationFocus(bool focused) { appUnfocused = !focused; if (!focused) ClearAllInput(); }
 
         public bool ConsumeCameraSwitch()
         {
@@ -65,9 +111,7 @@ namespace FormulaRacer
             steerAction.Disable();
             resetAction.Disable();
             cameraAction.Disable();
-            Drive = Steer = 0f;
-            resetRequested = false;
-            cameraSwitchRequested = false;
+            ClearAllInput();
         }
 
         private void OnDestroy()

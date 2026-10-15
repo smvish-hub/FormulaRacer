@@ -96,6 +96,8 @@ namespace FormulaRacer.Editor
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = new Color(0.35f, 0.58f, 0.8f);
 
+                Milestone3Setup.EnsureScene(scene);
+                Milestone3Setup.ConfigureLandscape();
                 ValidateScene(scene);
                 if (!EditorSceneManager.SaveScene(scene, ScenePath)) throw new InvalidOperationException("Could not save TestTrack.");
                 // Append only. Preserve order, enabled states, and existing scene entries.
@@ -138,6 +140,7 @@ namespace FormulaRacer.Editor
 
         private static void ValidateScene(Scene scene)
         {
+            Milestone3Setup.ValidateScene(scene);
             var roots = scene.GetRootGameObjects();
             var bodies = roots.SelectMany(r => r.GetComponentsInChildren<Rigidbody>(true)).ToArray();
             var cameras = roots.SelectMany(r => r.GetComponentsInChildren<Camera>(true)).ToArray();

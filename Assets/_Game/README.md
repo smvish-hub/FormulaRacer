@@ -1,4 +1,4 @@
-# FormulaRacer — Milestones 1 and 2
+# FormulaRacer — Milestones 1, 2 and 3
 
 Open `Assets/_Game/Scenes/TestTrack.unity`, enter Play Mode, and focus the Game view.
 
@@ -26,7 +26,7 @@ Tuning is on ArcadeCarController and ChaseCamera. Values use metres, seconds, an
 degrees. The car uses a low centre of mass, a single body collider, interpolated
 continuous collision detection, and constrained pitch/roll for this flat circuit.
 Wheels are decorative; suspension, wheel animation, camera collision
-avoidance, race UI, and touch controls are outside this milestone.
+avoidance and race UI are outside these milestones.
 
 CarInput creates/disposes local Input System actions; the existing template action
 asset and Player settings are untouched. No packages are required beyond those
@@ -68,6 +68,79 @@ validation passed. The Play Mode smoke check passed acceleration, braking,
 reverse, steering, reset, and grounded stability using queued keyboard input.
 The chase view was visually inspected. Full laps, collision stress testing, and
 Android builds/device performance have not been tested.
+
+## Android touch controls (Milestone 3)
+
+Use **FormulaRacer > Milestone 3 > Configure Mobile Controls** to add the overlay
+to the existing TestTrack without rebuilding its track/car. It reuses one
+MobileControls prefab instance and one Input System EventSystem; repeated runs
+preserve Inspector tuning and refuse to save a scene with unrelated unsaved edits.
+Full Milestone 1 rebuilds include the same mobile setup. Orientation is auto-rotate
+with only landscape left/right permitted; other Player settings are preserved.
+
+- Bottom left: hold left/right arrows to steer. Holding both means neutral steering.
+- Bottom right: green double-chevron accelerates; orange bars brake then reverse.
+  Brake wins when both pedals are held.
+- Upper right: camera icon switches chase/cockpit; circular-arrow icon resets.
+- Different fingers can hold steering and pedals together; multiple fingers on
+  one control remain independent. Dragging out of a control releases that pointer.
+  Releasing/cancelling a pointer does not release another finger's control.
+
+MobileControls exposes button/action sizes, spacing, safe-area edge padding,
+opacity, and Show In Editor. Controls show automatically on Android; desktop
+players remain keyboard-only. All icons are generated UI geometry, with no imported
+image/font assets. SafeAreaPanel follows Screen.safeArea when resolution/orientation
+changes. Extremely large custom button sizes can still overlap; check the target
+aspect ratios after tuning.
+
+The UI sends signed axis values and one-shot requests through CarInput. Touch
+overrides keyboard only on an actively held axis; keyboard resumes after release.
+Keyboard WASD/arrows/C/R remain available. Controls clear pointer leases on exit,
+cancel, disable, pause, and focus loss. A touch-state watchdog handles missing
+pointer-up/device removal. The car's physics and camera scripts are unchanged.
+The EventSystem uses InputSystemUIInputModule with independent pointers and UI
+navigation disabled so driving keys cannot accidentally select/activate controls.
+
+Use **Play TestTrack (Editor)** for an explicit test entry point, **Validate Mobile
+Controls** to inspect wiring/counts, and **Run Touch Smoke Check** for synthetic
+multitouch through the actual UI input module. The existing **Run Driving Smoke
+Check** remains the keyboard regression test. Neither check validates a physical
+device. Pause/focus checks invoke callbacks to simulate lifecycle events.
+
+**Build TestTrack Android APK** explicitly builds only TestTrack to
+`Builds/Android/FormulaRacer-TestTrack.apk` as a development build, without changing
+the global scene list/order. It requires installed Android build support and will
+not install modules. SampleScene remains first in the global scene list. This
+command is opt-in and is not run by setup or validation.
+
+Batch check entry points (do not pass -quit; the checks exit with success/failure):
+`FormulaRacer.Editor.PrototypeDrivingCheck.RunBatch` and
+`FormulaRacer.Editor.MobileControlsCheck.RunBatch`. Both create temporary input
+devices/settings as needed for a headless Editor; no persistent Input settings are
+changed. Batch setup/validation methods can use -quit normally.
+
+Milestone 3 verification completed in Unity 6000.6.3f1 headless Play Mode:
+
+- Compilation succeeded and saved physics/camera/mobile scene validation passed.
+- Keyboard regression passed using queued keyboard events (a temporary keyboard
+  and transient focus settings are supplied when headless mode has no device).
+- Synthetic Touchscreen events passed through InputSystemUIInputModule and actual
+  UI raycasts/handlers into CarInput. Checks passed simultaneous steering/pedal,
+  separate pointer-up, two fingers on one pedal, brake priority, cancellation,
+  simulated pause/focus callbacks, control/overlay disable, drag-out release,
+  touch-device removal, and the existing camera/reset consumers.
+- Three setup runs produced identical scene/prefab bytes with one Canvas, one
+  EventSystem, six controls, and unchanged global build order. Full track
+  regeneration was not rerun; its mobile integration uses the same EnsureScene routine.
+- The initial headless checks needed virtual-device/focus/simulation-time harness
+  fixes. An unnecessary scratch-scene assertion was removed because Unity rejects
+  additive scene creation beside an unsaved batch-startup scene. Final checks passed.
+
+No Android APK or physical-device test was run. Device checks still need to cover
+real multitouch, rotation/safe-area changes and cutouts, interrupted gestures,
+OS background/resume, target-size comfort, and device performance. The headless
+checks do not visually verify the overlay. Nothing has been staged/committed/pushed;
+the existing b8df926 checkpoint remains the rollback point.
 
 Batch generation (close this project's Editor first):
 
